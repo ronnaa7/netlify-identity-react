@@ -2,19 +2,1667 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Netlify Identity React</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div id="root"></div>
+  <title>אפליקציית כושר אישית</title>
 
-  <!-- React Dependencies -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Tailwind CSS CDN for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter for a modern look -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- React & ReactDOM CDNs -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Expose React and ReactDOM to the global scope for Babel before React code runs -->
+  <script>
+    window.React = React;
+    window.ReactDOM = ReactDOM;
+  </script>
+  <!-- Babel CDN for in-browser JSX transpilation -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel" src="main.jsx"></script>
+  <!-- Firebase JavaScript SDKs via CDN -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+    // Make Firebase objects globally accessible for the Babel script
+    window.firebase = {
+      initializeApp,
+      getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut,
+      getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove
+    };
+  </script>
+  
+  <style>
+    /* Custom CSS styles */
+    body {
+      font-family: 'Inter', sans-serif;
+      direction: rtl; /* Set text direction to right-to-left */
+      text-align: right; /* Align text to the right */
+      background-color: #f3f4f6; /* Light gray background */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box; /* Include padding in element's total width and height */
+    }
+    .container {
+      background-color: #ffffff; /* White background for the main content area */
+      padding: 30px;
+      border-radius: 15px; /* Rounded corners */
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+    h1, h2 {
+      color: #1f2937; /* Dark gray for headings */
+      margin-bottom: 20px;
+    }
+    input[type="email"],
+    input[type="password"],
+    input[type="text"],
+    input[type="number"], /* Added number type */
+    textarea { /* Added textarea to input styles */
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #d1d5db; /* Light gray border */
+      border-radius: 8px; /* Rounded corners for input fields */
+      box-sizing: border-box;
+      font-size: 16px;
+      text-align: right; /* Align text input to the right */
+    }
+    button {
+      background-color: #4f46e5; /* Indigo color for buttons */
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px; /* Rounded corners for buttons */
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+      transition: background-color 0.3s ease; /* Smooth transition on hover */
+    }
+    button:hover {
+      background-color: #4338ca; /* Darker indigo on hover */
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #e5e7eb; /* Light gray separator line */
+      margin: 30px 0;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 15px;
+    }
+    .logged-in-info p {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #4b5563;
+    }
+    .logout-button {
+      background-color: #dc2626; /* Red color for logout button */
+    }
+    .logout-button:hover {
+      background-color: #b91c1c; /* Darker red on hover */
+    }
+
+    /* Styles from the React code */
+    .input-style { width: 100%; background-color: #3f3f46; color: #f5f5f5; border: 1px solid #52525b; border-radius: 8px; padding: 12px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; text-align: right; }
+    .input-style::placeholder { color: #a1a1aa; }
+    .input-style:focus { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1); }
+    .label-style { font-size: 0.875rem; font-weight: 500; color: #d4d4d8; margin-bottom: 0.5rem; display: block; }
+    .btn-primary { background-color: #f59e0b; color: #171717; font-weight: bold; padding: 12px; border-radius: 8px; transition: all 0.2s; }
+    .btn-primary:hover { background-color: #fbbf24; transform: translateY(-2px); }
+    .btn-secondary { background-color: #3f3f46; color: #e5e5e5; font-weight: bold; padding: 12px; border-radius: 8px; transition: all 0.2s; }
+    .btn-secondary:hover { background-color: #52525b; transform: translateY(-2px); }
+    .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .loader{border:4px solid #f3f3f340;border-top:4px solid #f59e0b;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    .ai-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 8px; font-size: 1rem; font-weight: 600; transition: background-color 0.2s; cursor: pointer; }
+    /* Added style for icon placeholders */
+    .icon-placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px; /* Adjust size as needed */
+      height: 20px; /* Adjust size as needed */
+      font-size: 1rem; /* Adjust font size of emoji/text */
+      color: currentColor; /* Inherit color from parent */
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div> <!-- This is where your React app will be mounted -->
+
+  <!-- Your React application code, using Babel for JSX transpilation -->
+  <script type="text/babel">
+    // React hooks and functions are now available via window.React implicitly
+    // from the <script> block above that exposes them globally.
+    // No explicit destructuring needed here.
+
+    // Import Firebase functions from the global window.firebase object
+    const { 
+      initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut,
+      getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, query, getDocs, serverTimestamp, updateDoc, arrayUnion, arrayRemove
+    } = window.firebase;
+
+    // --- Firebase Configuration ---
+    // The configuration object for your Firebase project.
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6H31387y3cjr5WqjDXlPvzE97hxxvVWc",
+      authDomain: "re-studio.firebaseapp.com",
+      projectId: "re-studio",
+      storageBucket: "re-studio.appspot.com",
+      messagingSenderId: "964931523746",
+      appId: "1:964931523746:web:4c844e2a62fd95d3a2b3fb",
+      measurementId: "G-2T4SGBVGD9"
+    };
+    
+    // The App ID for Firestore path construction.
+    const appId = firebaseConfig.appId;
+
+    // Initialize Firebase services
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --- Context API for Modal ---
+    const ModalContext = React.createContext(null);
+
+    const ModalProvider = ({ children }) => {
+        const [modal, setModal] = React.useState({ isOpen: false, title: '', content: null });
+        const showModal = (title, content) => {
+            console.log("Showing Modal:", title);
+            setModal({ isOpen: true, title, content });
+        };
+        const hideModal = () => {
+            console.log("Hiding Modal");
+            setModal({ isOpen: false, title: '', content: null });
+        };
+
+        return (
+            <ModalContext.Provider value={{ showModal, hideModal }}>
+                {children}
+                <Modal {...modal} onClose={hideModal} />
+            </ModalContext.Provider>
+        );
+    };
+
+    const useModal = () => React.useContext(ModalContext);
+
+    // --- Custom Hooks for Firebase Logic ---
+    function useAuth() {
+        const [user, setUser] = React.useState(null);
+        const [authLoading, setAuthLoading] = React.useState(true);
+
+        React.useEffect(() => {
+            let unsubscribeFromAuthStateChanged;
+            console.log("useAuth: Initializing auth...");
+
+            const initializeAuth = async () => {
+                try {
+                    // In a live environment, custom tokens would be handled differently.
+                    // For a simple deploy, we'll default to anonymous sign-in.
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Firebase initial sign-in error:", error);
+                } finally {
+                    setAuthLoading(false);
+                    console.log("useAuth: Auth loading finished.");
+                }
+            };
+
+            unsubscribeFromAuthStateChanged = onAuthStateChanged(auth, (currentUser) => {
+                setUser(currentUser);
+                console.log("useAuth: Auth state changed, user:", currentUser ? currentUser.uid : 'none');
+            });
+
+            if (authLoading) {
+                initializeAuth();
+            }
+
+            return () => {
+                if (unsubscribeFromAuthStateChanged) {
+                    unsubscribeFromAuthStateChanged();
+                }
+            };
+        }, [auth]);
+
+        return { user, authLoading };
+    }
+
+    function useUserData(userId) {
+        const [userData, setUserData] = React.useState(null);
+        const [loading, setLoading] = React.useState(true);
+        React.useEffect(() => {
+            if (!userId) {
+                setLoading(false);
+                return;
+            }
+            console.log("useUserData: Fetching user data for:", userId);
+            const userDocRef = doc(db, 'artifacts', appId, 'users', userId);
+            const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                const data = docSnap.data();
+                setUserData(data || null);
+                setLoading(false);
+                console.log("useUserData: User data loaded:", data);
+            }, (error) => {
+                console.error("Error fetching user data:", error);
+                setLoading(false);
+            });
+            return () => {
+                unsubscribe();
+                console.log("useUserData: Unsubscribed from user data.");
+            };
+        }, [userId, db, appId]);
+
+        return { userData, loading };
+    }
+
+    // --- Main App Component ---
+    function AppContainer() {
+        return (
+            <ModalProvider>
+                <App />
+            </ModalProvider>
+        );
+    }
+
+    function App() {
+        const { user, authLoading } = useAuth(); 
+        const { userData, loading: userDataLoading } = useUserData(user?.uid);
+        const onboardingComplete = userData?.profile?.onboardingCompleted === true;
+
+        if (authLoading || userDataLoading) { 
+            return <FullScreenLoader />;
+        }
+
+        if (!user) {
+             return <FullScreenLoader>
+                        <div className="text-center text-red-400">
+                            <h2 className="text-2xl font-bold">שגיאת אתחול</h2>
+                            <p className="mt-2">לא ניתן לטעון את המשתמש. אנא רענן את הדף.</p>
+                        </div>
+                    </FullScreenLoader>;
+        }
+
+        if (!onboardingComplete) { 
+            return <OnboardingWizard user={user} />;
+        }
+
+        return <MainAppView user={user} userData={userData} />;
+    }
+
+    // --- 1. Onboarding Wizard Component ---
+    function OnboardingWizard({ user }) {
+        const totalSteps = 4;
+        const [step, setStep] = React.useState(1);
+        const [isGenerating, setIsGenerating] = React.useState(false);
+        const [previewPlan, setPreviewPlan] = React.useState(null);
+        const [formData, setFormData] = React.useState({
+            name: '', age: '', gender: 'גבר', height: '', current_weight: '', occupation: '',
+            health_conditions: '', injuries: '', dietary_restrictions: '', 
+            alcohol: 'לעתים רחוקות', water_intake: '', late_night_eating: false,
+            training_frequency: '3-4', specific_goals: 'ירידה באחוזי שומן',
+            training_emphasis: 'אימון כללי מאוזן',
+        });
+
+        const { showModal, hideModal } = useModal();
+
+        const handleNext = () => setStep(s => s + 1);
+        const handleBack = () => setStep(s => s - 1);
+        const handleChange = (name, value) => { setFormData(prev => ({ ...prev, [name]: value })); };
+
+        const handleGeneratePlan = async () => {
+            if (!formData.name.trim() || !formData.age || !formData.height || !formData.current_weight) {
+                showModal("פרטים חסרים", "אנא מלא את כל הפרטים האישיים בשלב הראשון.");
+                setStep(1);
+                return;
+            }
+            setIsGenerating(true);
+            setPreviewPlan(null);
+
+            const prompt = `
+                Act as an expert kinesiologist and clinical dietitian. Your task is to generate a comprehensive, structured, and highly personalized weekly fitness and nutrition plan.
+                Return ONLY the JSON object, nothing else. DO NOT include any text before or after the JSON.
+                The JSON MUST adhere to the following structure:
+                \`\`\`json
+                {
+                    "workout_plan": {
+                        "split_type": "string",
+                        "coach_notes": "string",
+                        "days": {
+                            "אימון A": [
+                                { "id": "string", "name": "string", "sets": "string", "reps": "string", "weight": "string", "target_muscle": "string (e.g., 'חזה', 'גב עליון', 'ארבע ראשי')", "video_search_query": "string", "alternative_exercise": "string" }
+                            ],
+                            "אימון B": [
+                                { "id": "string", "name": "string", "sets": "string", "reps": "string", "weight": "string", "target_muscle": "string (e.g., 'חזה', 'גב עליון', 'ארבע ראשי')", "video_search_query": "string", "alternative_exercise": "string" }
+                            ]
+                        }
+                    },
+                    "nutrition_plan": {
+                        "summary": {
+                            "daily_calories": "string",
+                            "protein_grams": "string",
+                            "carbs_grams": "string",
+                            "fat_grams": "string"
+                        },
+                        "meals": [
+                            {
+                                "title": "string",
+                                "time": "string",
+                                "options": [
+                                    {
+                                        "option_name": "string",
+                                        "items": [
+                                            { "name": "string", "quantity": "string", "unit": "string", "type": "חלבון" | "פחמימה" | "שומן" }
+                                        ],
+                                        "nutrition_summary": { "calories": "string", "protein_g": "string", "carbs_g": "string", "fats_g": "string" }
+                                    }
+                                ]
+                            }
+                        ],
+                        "component_alternatives": {
+                            "protein_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ],
+                            "carb_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ],
+                            "fat_sources": [
+                                { "name": "string", "calories": "string", "protein_g": "string", "carbs_g": "string" }
+                            ]
+                        }
+                    }
+                }
+                \`\`\`
+
+                User Data:
+                - Personal: { name: "${formData.name}", age: ${formData.age}, gender: "${formData.gender}", height_cm: ${formData.height}, current_weight_kg: ${formData.current_weight}, occupation: "${formData.occupation || 'Not specified'}" }
+                - Medical: { health_conditions: "${formData.health_conditions || 'None'}", injuries: "${formData.injuries || 'None'}", allergies: "${formData.allergies || 'None'}", liked_exercises: [], disliked_exercises: [] }
+                - Nutrition: { restrictions: "${formData.dietary_restrictions || 'None'}", alcohol_frequency: "${formData.alcohol}", water_intake_liters: "${formData.water_intake || 'Not specified'}", late_night_eating: ${formData.late_night_eating} }
+                - Fitness: { frequency_days_per_week: ${formData.training_frequency.split('-')[0]}, specific_goals: "${formData.specific_goals}", training_emphasis: "${formData.training_emphasis}" }
+
+                **PROFESSIONAL ANALYSIS**: Calculate BMR/TDEE. Choose the best training split. For each exercise, specify the primary target_muscle. Create at least 2-3 distinct meal options for main meals. Populate the alternatives bank with accurate data.
+                **IMPORTANT**: For food items in 'items' array, explicitly state if the quantity is 'לפני בישול' (before cooking) or 'אחרי בישול' (after cooking) where relevant, or 'כמות משוערת' for raw/no-cook items (e.g., "חזה עוף (150 גרם לפני בישול)", "אורז (100 גרם אחרי בישול)", "יוגורט יווני (150 גרם כמות משוערת)").
+                **Output Language:** Entirely in Hebrew.
+            `;
+
+            try {
+                showModal("המאמן האישי שלך בפעולה...", <LoadingSpinner />);
+                const plan = await callGemini(prompt, true); 
+                setPreviewPlan(plan);
+                setStep(totalSteps + 1);
+                hideModal();
+            } catch (error) {
+                console.error("Failed to generate plan:", error);
+                hideModal();
+                showModal("שגיאה ביצירת התוכנית", `אירעה שגיאה. נסה שוב בעוד מספר רגעים. (${error.message})`);
+            } finally {
+                setIsGenerating(false);
+            }
+        };
+
+        const handleFinalizeAndSave = async () => {
+            if (!previewPlan) return;
+            setIsGenerating(true);
+            try {
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                await setDoc(userDocRef, {
+                    profile: { ...formData, onboardingCompleted: true, liked_exercises: [], disliked_exercises: [] },
+                    plan: previewPlan,
+                    dailyTracking: { water: 0, calories: 0, workoutCompleted: false },
+                    createdAt: serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.error("Failed to save plan:", error);
+                showModal("שגיאה בשמירת התוכנית", "אירעה שגיאה. אנא נסה שוב.");
+            } finally {
+                setIsGenerating(false);
+            }
+        };
+
+        if (isGenerating) return (
+            <FullScreenLoader>
+                <div className="text-center">
+                    <span className="mx-auto text-5xl text-amber-400 animate-pulse">✨</span>
+                    <h2 className="2xl font-bold mt-4">המאמן האישי שלך בפעולה...</h2>
+                    <p className="text-neutral-400 mt-2">בונה לך תוכנית מותאמת אישית, על בסיס עקרונות מדעיים.</p>
+                </div>
+            </FullScreenLoader>
+        );
+
+        return (
+            <div className="bg-neutral-900 text-neutral-200 min-h-screen flex flex-col p-4 sm:p-6" dir="rtl">
+                <div className="w-full max-w-2xl mx-auto flex flex-col flex-grow">
+                    <ProgressBar currentStep={step} totalSteps={totalSteps} />
+                    <div className="flex-grow flex items-center">
+                        <div className="w-full">
+                            {step === 1 && <OnboardingStep title="פרטים אישיים" subtitle="נתונים בסיסיים שיעזרו לנו להכיר אותך." onNext={handleNext}>
+                                <div className="space-y-4">
+                                    <TextInput icon={<span className="icon-placeholder">👤</span>} name="name" value={formData.name} onChange={(e) => handleChange('name', e.target.value)} placeholder="שם מלא" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <TextInput icon={<span className="icon-placeholder">🎂</span>} name="age" type="number" value={formData.age} onChange={(e) => handleChange('age', e.target.value)} placeholder="גיל" />
+                                        <OptionButtons name="gender" options={['גבר', 'אישה']} selected={formData.gender} onSelect={(val) => handleChange('gender', val)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <TextInput icon={<span className="icon-placeholder">📏</span>} name="height" type="number" value={formData.height} onChange={(e) => handleChange('height', e.target.value)} placeholder="גובה (ס״מ)" />
+                                        <TextInput icon={<span className="icon-placeholder">⚖️</span>} name="current_weight" type="number" value={formData.current_weight} onChange={(e) => handleChange('current_weight', e.target.value)} placeholder="משקל (ק״ג)" />
+                                    </div>
+                                    <TextInput icon={<span className="icon-placeholder">💼</span>} name="occupation" value={formData.occupation} onChange={(e) => handleChange('occupation', e.target.value)} placeholder="עיסוק מקצועי" />
+                                </div>
+                            </OnboardingStep>}
+
+                            {step === 2 && <OnboardingStep title="היסטוריה רפואית" subtitle="מידע זה חיוני לבניית תוכנית בטוחה ואפקטיבית." onNext={handleNext} onBack={handleBack}>
+                                <div className="space-y-4">
+                                    <label className="label-style">מחלות כרוניות או בעיות בריאותיות?</label>
+                                    <textarea name="health_conditions" value={formData.health_conditions} onChange={(e) => handleChange('health_conditions', e.target.value)} placeholder="סוכרת, יתר לחץ דם, בעיות לב..." className="input-style h-24"></textarea>
+                                    <label className="label-style">פציעות או מגבלות פיזיות?</label>
+                                    <textarea name="injuries" value={formData.injuries} onChange={(e) => handleChange('injuries', e.target.value)} placeholder="כאבי גב, רגישות בברכיים..." className="input-style h-24"></textarea>
+                                </div>
+                            </OnboardingStep>}
+
+                            {step === 3 && <OnboardingStep title="תזונה ופעילות" subtitle="איך נראה היום-יום שלך?" onNext={handleNext} onBack={handleBack}>
+                                <div className="space-y-6">
+                                    <label className="label-style">העדפות תזונתיות (טבעוני, צמחוני) או אלרגיות?</label>
+                                    <textarea name="dietary_restrictions" value={formData.dietary_restrictions} onChange={(e) => handleChange('dietary_restrictions', e.target.value)} placeholder="ללא גלוטן, אלרגיה לבוטנים..." className="input-style h-24"></textarea>
+                                    <label className="label-style">מהי מטרת האימון העיקרית שלך?</label>
+                                    <OptionButtons name="specific_goals" options={['ירידה באחוזי שומן', 'עלייה במסת שריר', 'שיפור סיבולת', 'כוח מתפרץ']} selected={formData.specific_goals} onSelect={(val) => handleChange('specific_goals', val)} isMultiRow={true} />
+                                </div>
+                            </OnboardingStep>}
+
+                            {step === 4 && <OnboardingStep title="דגשים ופרטים אחרונים" subtitle="כמעט סיימנו!" onNext={handleGeneratePlan} onBack={handleBack} isFinal={true}>
+                                <div className="space-y-6">
+                                    <label className="label-style">איזה דגש נרצה לשים בתוכנית?</label>
+                                    <OptionButtons name="training_emphasis" options={['פלג גוף עליון (חזה וידיים)', 'פלג גוף תחתון (רגליים וישבן)', 'בטן וחיזוק הליבה', 'אימון כללי מאוזן']} selected={formData.training_emphasis} onSelect={(val) => handleChange('training_emphasis', val)} isMultiRow={true} />
+                                    <label className="label-style">תדירות אימונים שבועית</label>
+                                    <OptionButtons name="training_frequency" options={['2-3', '4', '5+']} selected={formData.training_frequency} onSelect={(val) => handleChange('training_frequency', val)} suffix="פעמים" />
+                                </div>
+                            </OnboardingStep>}
+
+                            {step === 5 && previewPlan && <PreviewStep plan={previewPlan} onApprove={handleFinalizeAndSave} onRegenerate={handleGeneratePlan} />}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const ProgressBar = ({ currentStep, totalSteps }) => (
+        <div className="w-full my-4">
+            <div className="flex justify-between mb-1">
+                <span className="text-base font-medium text-amber-400">שלב {Math.min(currentStep, totalSteps)} מתוך {totalSteps}</span>
+            </div>
+            <div className="w-full bg-neutral-700 rounded-full h-2.5">
+                <div className="bg-amber-400 h-2.5 rounded-full" style={{ width: `${(Math.min(currentStep, totalSteps) / totalSteps) * 100}%`, transition: 'width 0.5s ease-in-out' }}></div>
+            </div>
+        </div>
+    );
+
+    const OnboardingStep = ({ title, subtitle, children, onNext, onBack, isFinal = false }) => (
+        <div className="bg-neutral-800/50 p-6 sm:p-8 rounded-2xl border border-neutral-700/50 shadow-2xl animate-fade-in flex-grow flex flex-col justify-center">
+            <div className="text-center mb-8">
+                <h2 className="text-2xl sm:text-3xl font-bold text-neutral-100">{title}</h2>
+                <p className="text-neutral-400 mt-2">{subtitle}</p>
+            </div>
+            <div className="space-y-6 flex-grow">{children}</div>
+            <div className="flex flex-col sm:flex-row gap-4 mt-10">
+                {onBack && <button onClick={onBack} className="btn-secondary flex-1 order-2 sm:order-1"><span className="icon-placeholder">⬅️</span> חזור</button>}
+                <button onClick={onNext} className="btn-primary flex-1 order-1 sm:order-2">{isFinal ? 'צור לי תוכנית!' : 'המשך'}</button>
+            </div>
+        </div>
+    );
+
+    const TextInput = ({ icon, ...props }) => (
+        <div className="relative">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">{icon}</span>
+            <input {...props} className="input-style pl-10" />
+        </div>
+    );
+
+    const OptionButtons = ({ name, options, selected, onSelect, suffix = '', isMultiRow = false }) => (
+        <div className={`grid gap-3 ${isMultiRow ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {options.map(opt => (
+                <button
+                    key={opt}
+                    onClick={() => onSelect(opt)}
+                    className={`p-3 rounded-lg text-center transition-all duration-200 border-2 ${selected === opt ? 'bg-amber-400/10 border-amber-400 text-amber-300 font-bold' : 'bg-neutral-700/50 border-transparent hover:bg-neutral-700'}`}
+                >
+                    {opt}{suffix && ` ${suffix}`}
+                </button>
+            ))}
+        </div>
+    );
+
+    const PreviewStep = ({ plan, onApprove, onRegenerate }) => {
+        const workoutPlanExists = plan?.workout_plan && typeof plan.workout_plan === 'object';
+        const nutritionPlanExists = plan?.nutrition_plan && typeof plan.nutrition_plan === 'object';
+        const firstMealExists = nutritionPlanExists && Array.isArray(plan.nutrition_plan.meals) && plan.nutrition_plan.meals.length > 0;
+        const firstMealOptionItemsExist = nutritionPlanExists && Array.isArray(plan.nutrition_plan.meals[0].options) && plan.nutrition_plan.meals[0].options.length > 0 && Array.isArray(plan.nutrition_plan.meals[0].options[0].items);
+
+        return (
+            <div className="bg-neutral-800/50 p-6 sm:p-8 rounded-2xl border border-neutral-700/50 shadow-2xl animate-fade-in flex-grow flex-col justify-center flex">
+                <h2 className="text-xl sm:text-2xl font-bold text-amber-400 text-center mb-4">תצוגה מקדימה של התוכנית</h2>
+                <div className="overflow-y-auto space-y-4 pr-2">
+                    {nutritionPlanExists && plan.nutrition_plan.summary && (
+                        <Card title="סיכום תזונה יומי">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div><p className="text-sm text-neutral-400">קלוריות</p><p className="font-bold text-lg text-white">{plan.nutrition_plan.summary.daily_calories}</p></div>
+                                <div><p className="text-sm text-neutral-400">חלבון</p><p className="font-bold text-lg text-white">{plan.nutrition_plan.summary.protein_grams}ג'</p></div>
+                                <div><p className="text-sm text-neutral-400">פחמימה</p><p className="font-bold text-lg text-white">{plan.nutrition_plan.summary.carbs_grams}ג'</p></div>
+                                <div><p className="text-sm text-neutral-400">שומן</p><p className="font-bold text-lg text-white">{plan.nutrition_plan.summary.fat_grams}ג'</p></div>
+                            </div>
+                        </Card>
+                    )}
+                    {workoutPlanExists && plan.workout_plan?.split_type && (
+                        <Card title="תוכנית אימונים">
+                            <p className="text-amber-400 font-semibold">{plan.workout_plan.split_type}</p>
+                            {plan.workout_plan.coach_notes && <p className="text-sm text-neutral-300 italic mt-1 mb-4">"{plan.workout_plan.coach_notes}"</p>}
+                            {workoutPlanExists && Object.values(plan.workout_plan.days)?.[0]?.slice(0, 2).map(ex => (
+                                <li key={ex.id}>{ex.name}</li>
+                            ))}
+                            <li>ועוד...</li>
+                        </Card>
+                    )}
+                    {firstMealExists && firstMealOptionItemsExist && (
+                        <Card title="דוגמת ארוחה">
+                            <h4 className="font-semibold text-neutral-200">{plan.nutrition_plan.meals[0].title}</h4>
+                            <ul className="list-disc list-inside text-neutral-300">
+                                {plan.nutrition_plan.meals[0].options[0].items.map((item, i) => (
+                                    <li key={i}>{item.name} ({item.quantity} {item.unit})</li>
+                                ))}
+                            </ul>
+                        </Card>
+                    )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 mt-8 pt-4 border-t border-neutral-700">
+                    <button onClick={onRegenerate} className="btn-secondary flex-1 flex items-center justify-center gap-2">
+                        <span className="icon-placeholder">🔄</span> צור תוכנית חדשה
+                    </button>
+                    <button onClick={onApprove} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                        <span className="icon-placeholder">✅</span> אישור ושמירה
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    // Main application view after onboarding is complete
+    function MainAppView({ user, userData }) {
+        const [activeTab, setActiveTab] = React.useState('today');
+
+        const renderContent = () => {
+            if (!userData) return <FullScreenLoader />;
+            const props = { user, userData };
+            switch (activeTab) {
+                case 'today': return <TodayView {...props} />;
+                case 'plan': return <PlanView {...props} />;
+                case 'progress': return <ProgressView {...props} />;
+                case 'profile': return <ProfileView {...props} />;
+                case 'chat': return <ChatView {...props} />;
+                default: return <TodayView {...props} />;
+            }
+        };
+
+        return (
+            <div className="bg-neutral-900 text-neutral-200 font-sans min-h-screen flex flex-col" dir="rtl">
+                <header className="p-4 text-center">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-neutral-300 to-neutral-500">R.T studio</h1>
+                </header>
+                <main className="flex-grow p-4 overflow-y-auto pb-24">
+                    {renderContent()}
+                </main>
+                <nav className="fixed bottom-0 left-0 right-0 bg-neutral-900/80 backdrop-blur-sm border-t border-neutral-700 grid grid-cols-5 gap-2 p-2 z-10">
+                    <TabButton icon={<span className="icon-placeholder">🏠</span>} label="היום" name="today" activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <TabButton icon={<span className="icon-placeholder">📋</span>} label="תוכנית" name="plan" activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <TabButton icon={<span className="icon-placeholder">📈</span>} label="התקדמות" name="progress" activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <TabButton icon={<span className="icon-placeholder">💬</span>} label="צ'אט" name="chat" activeTab={activeTab} setActiveTab={setActiveTab} /> 
+                    <TabButton icon={<span className="icon-placeholder">👤</span>} label="פרופיל" name="profile" activeTab={activeTab} setActiveTab={setActiveTab} />
+                </nav>
+            </div>
+        );
+    }
+
+    function TodayView({ user, userData }) {
+        const { showModal } = useModal();
+        const planSummary = userData?.plan?.nutrition_plan?.summary;
+        const [tracking, setTracking] = React.useState(userData.dailyTracking || { water: 0, calories: 0, workoutCompleted: false });
+
+        React.useEffect(() => {
+            setTracking(userData.dailyTracking || { water: 0, calories: 0, workoutCompleted: false });
+        }, [userData.dailyTracking]);
+
+        const updateTrackingData = async (field, value) => {
+            if (!user) return;
+            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+            try {
+                await updateDoc(userDocRef, { [`dailyTracking.${field}`]: value });
+            } catch (e) {
+                console.error("Error updating tracking data:", e);
+                showModal("שגיאה", "שגיאה בעדכון הנתונים.");
+            }
+        };
+
+        const handleWaterChange = (amount) => updateTrackingData('water', Math.max(0, (tracking.water || 0) + amount));
+        const handleCaloriesChange = (amount) => updateTrackingData('calories', Math.max(0, (tracking.calories || 0) + amount));
+        const handleWorkoutToggle = () => updateTrackingData('workoutCompleted', !tracking.workoutCompleted);
+
+        const handleAIPrompt = async (type) => {
+            const prompts = {
+                motivation: `בתור מאמן כושר תומך וממוקד עבור ${userData.profile.name}, עם התייחסות ליעד העיקרי שלך - "${userData.profile.specific_goals}". כתוב הודעת מוטיבציה קצרה, מעוררת השראה ומעשית, שתעודד אותך להמשיך להתמיד היום. נסח את ההודעה בשפה מקצועית ויוקרתית, עם כותרת בולטת. השתמש בסימני Markdown (כמו כוכביות לכותרות ועיבוי טקסט) כדי לשפר את הנראות. הפלט חייב להיות כולו בעברית בלבד.`,
+                snack: `בתור דיאטן קליני, צור 3 רעיונות יצירתיים ומפורטים לחטיפים עשירים בחלבון, המתאימים למטרת ${userData.profile.name} של "${userData.profile.specific_goals}" ומתחשבים בהגבלות התזונתיות "${userData.profile.dietary_restrictions || 'אין'}" (אם קיימות). לכל רעיון:
+                * **שם החטיף:** שם קצר ומושך.
+                * **מרכיבים עיקריים וכמות משוערת:** (לדוגמה, 100 גרם יוגורט יווני, חופן פירות יער).
+                * **יתרונות תזונתיים:** הסבר קצר מדוע חטיף זה יעיל ומומלץ בהקשר ליעדי המשתמש.
+                הצג את הרעיונות כרשימה ממוספרת, בפורמט מקצועי וברור. הפלט חייב להיות כולו בעברית בלבד.`
+            };
+            const titles = { motivation: "💪 קדימה, לעבודה!", snack: "✨ רעיונות לנשנושים בריאים" };
+            
+            showModal(titles[type], <LoadingSpinner />);
+
+            try {
+                const response = await callGemini(prompts[type]);
+                showModal(titles[type], <div className="whitespace-pre-wrap">{response}</div>);
+            } catch (error) {
+                showModal("שגיאה", "אירעה שגיאה בטעינת המידע מה-AI.");
+                console.error("AI prompt failed:", error);
+            }
+        };
+
+        const WhatsAppIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.456l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.269.654 4.495 1.932 6.22l-1.026 3.747 3.847-1.023z"/></svg>;
+        const InstagramIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.85s-.011 3.584-.069 4.85c-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.069-4.85.069s-3.584-.011-4.85-.069c-3.252-.149-4.771-1.664-4.919-4.919-.058-1.265-.069-1.645-.069-4.85s.011-3.584.069-4.85c.149-3.225 1.664-4.771 4.919-4.919C8.416 2.175 8.796 2.163 12 2.163zm0 1.441c-3.193 0-3.56.012-4.783.069-2.705.123-3.966 1.4-4.09 4.09-.057 1.222-.068 1.582-.068 4.783s.011 3.56.068 4.783c.124 2.688 1.386 3.966 4.09 4.09 1.223.057 1.59.068 4.783.068s3.56-.011 4.783-.068c2.705-.124 3.966-1.386 4.09-4.09.057-1.222.068-1.582-.068-4.783s-.011-3.56-.068-4.783c-.124-2.688-1.386-3.966-4.09-4.09C15.56 3.615 15.193 3.604 12 3.604zm0 4.865a3.532 3.532 0 100 7.064 3.532 3.532 0 000-7.064zm0 5.613a2.081 2.081 0 110-4.162 2.081 2.081 0 010 4.162zm4.965-6.402a.96.96 0 100 1.92.96.96 0 000-1.92z"/></svg>;
+
+
+        return (
+            <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-amber-400">היום שלך, {userData?.profile?.name || ''}</h2>
+
+                {planSummary && (
+                    <Card title="יעדים יומיים">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div><p className="text-sm text-neutral-400">קלוריות</p><p className="font-bold text-lg text-white">{planSummary.daily_calories}</p></div>
+                            <div><p className="text-sm text-neutral-400">חלבון</p><p className="font-bold text-lg text-white">{planSummary.protein_grams}ג'</p></div>
+                            <div><p className="text-sm text-neutral-400">פחמימה</p><p className="font-bold text-lg text-white">{planSummary.carbs_grams}ג'</p></div>
+                            <div><p className="text-sm text-neutral-400">שומן</p><p className="font-bold text-lg text-white">{planSummary.fat_grams}ג'</p></div>
+                        </div>
+                    </Card>
+                )}
+
+                <Card title="מעקב יומי">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        <Tracker label="מים (ליטר)" value={(tracking.water || 0).toFixed(1)} onIncrease={() => handleWaterChange(0.5)} onDecrease={() => handleWaterChange(-0.5)} icon={<span className="icon-placeholder">💧</span>} />
+                        <Tracker label="קלוריות" value={tracking.calories || 0} onIncrease={() => handleCaloriesChange(50)} onDecrease={() => handleCaloriesChange(-50)} icon={<span className="icon-placeholder">🔥</span>} />
+                        <div className="flex flex-col items-center justify-center p-2">
+                            <span className={`icon-placeholder ${tracking.workoutCompleted ? 'text-green-400' : 'text-neutral-600'}`}>✅</span>
+                            <p className="mt-1 text-sm text-neutral-300">אימון</p>
+                            <button onClick={handleWorkoutToggle} className={`mt-2 px-3 py-1 text-xs font-bold rounded-full transition-colors ${tracking.workoutCompleted ? 'bg-green-500/20 text-green-300' : 'bg-neutral-700 text-neutral-300'}`}>
+                                {tracking.workoutCompleted ? 'בוצע' : 'סמן כבוצע'}
+                            </button>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card title="מאמן AI">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onClick={() => handleAIPrompt('motivation')} className="ai-btn bg-green-500/10 text-green-400 hover:bg-green-500/20">
+                            <span className="icon-placeholder">🤖</span> זריקת מוטיבציה
+                        </button>
+                        <button onClick={() => handleAIPrompt('snack')} className="ai-btn bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
+                            <span className="icon-placeholder">🍎</span> הצע לי נשנוש
+                        </button>
+                    </div>
+                </Card>
+
+                <Card title="יצירת קשר">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <a href="https://wa.me/972546636980" target="_blank" rel="noopener noreferrer" className="ai-btn bg-green-500/10 text-green-400 hover:bg-green-500/20">
+                            <WhatsAppIcon />
+                            שלח הודעה ב-WhatsApp
+                        </a>
+                        <a href="https://www.instagram.com/ron.tsemach" target="_blank" rel="noopener noreferrer" className="ai-btn bg-pink-500/10 text-pink-400 hover:bg-pink-500/20">
+                           <InstagramIcon />
+                            עקוב באינסטגרם
+                        </a>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    function PlanView({ user, userData }) {
+        const { showModal } = useModal();
+        const [plan, setPlan] = React.useState(userData.plan); 
+        const [showAlternatives, setShowAlternatives] = React.useState(false);
+
+        React.useEffect(() => { 
+            setPlan(userData.plan);
+        }, [userData.plan]);
+
+        const handleGenerateQuickMealForMeal = async (mealIndex, mealTitle, mealTime, currentOptions) => {
+            if (!user) {
+                showModal('שגיאה', 'אנא התחבר/י כדי ליצור ארוחה זריזה.');
+                return;
+            }
+
+            const quickMealCount = currentOptions.filter(opt => opt.option_name && opt.option_name.startsWith('ארוחה זריזה')).length + 1;
+            const newQuickMealOptionName = `ארוחה זריזה #${quickMealCount}`;
+
+            showModal("יוצר ארוחה זריזה...", <LoadingSpinner />);
+            
+            const userProfile = userData?.profile || {};
+            const userGoals = userProfile.specific_goals || 'ירידה באחוזי שומן';
+            const dietaryRestrictions = userProfile.dietary_restrictions || 'אין';
+            const currentWeight = userProfile.current_weight || 'לא צוין';
+            const dailySummary = userData?.plan?.nutrition_plan?.summary || { daily_calories: '2000', protein_grams: '150', carbs_grams: '200', fat_grams: '70' };
+
+            const quickMealPrompt = `
+                כדיאטן קליני ומומחה לתזונה, צור אופציית ארוחה "זריזה" חדשה ושונה עבור "${mealTitle}" (${mealTime}) עבור לקוח עם המאפיינים הבאים:
+                - יעדים: "${userGoals}"
+                - הגבלות תזונתיות: "${dietaryRestrictions}"
+                - משקל נוכחי: "${currentWeight} ק"ג"
+                - **נתונים תזונתיים יומיים כוללים (יש להתחשב בהם ביחס לארוחה בודדת - כ-20-30% מהערכים היומיים):**
+                    - קלוריות יומיות: ${dailySummary.daily_calories}
+                    - חלבון יומי: ${dailySummary.protein_grams} גרם
+                    - פחמימה יומית: ${dailySummary.carbs_grams} גרם
+                    - שומן יומי: ${dailySummary.fat_grams} גרם
+
+                הארוחה צריכה להיות קלילה וקלה להכנה, **שלא מצריכה בישול כלל**, אלא הרכבה בלבד. **חשוב מאוד לגוון את מקורות החלבון והפחמימה.** אל תציע שוב ושוב ארוחות מבוססות יוגורט. חשוב על שילובים יצירתיים.
+
+                **דוגמאות למקורות חלבון זמינים:** קופסת טונה במים, קוטג', גבינה לבנה, יוגורט פרו, משקה חלבון מוכן, ביצים קשות, פרוסות פסטרמה דלת שומן.
+                **דוגמאות למקורות פחמימה זמינים:** לחם מלא/קל, פריכיות אורז, קרקרים מחיטה מלאה, שיבולת שועל להכנה מהירה (עם מים חמים), פירות.
+
+                **דוגמאות לשילובים מומלצים:**
+                - 2 פרוסות לחם קל עם קופסת טונה וירקות.
+                - 3-4 פריכיות אורז עם קוטג' וביצה קשה בצד.
+                - שייק חלבון (מאבקה או מוכן) עם בננה.
+                - קערת יוגורט פרו עם פירות יער ומעט אגוזים.
+
+                **CRITICAL**: You MUST return ONLY the JSON object, and NOTHING ELSE. No introductory text, no concluding remarks, no markdown formatting outside the JSON itself.
+                The JSON MUST strictly adhere to the following structure and values. The "option_name" must be exactly "${newQuickMealOptionName}". "items" must be an array of at least 2 and up to 5 items.
+                \`\`\`json
+                {
+                    "option_name": "${newQuickMealOptionName}",
+                    "items": [
+                        {"name": "שם רכיב", "quantity": "כמות", "unit": "יחידה (לפני/אחרי בישול, או כמות משוערת)", "type": "חלבון"}
+                    ],
+                    "nutrition_summary": {"calories": "מספר קלוריות לארוחה", "protein_g": "גרם חלבון לארוחה", "carbs_g": "גרם פחמימה לארוחה", "fats_g": "גרם שומן לארוחה"}
+                }
+                \`\`\`
+                **דגשים:**
+                - וודא שהמנה תואמת את יעדי הכושר וההגבלות התזונתיות.
+                - **חשב את ערכי ה-nutrition_summary עבור הארוחה הזריזה הספציפית הזו, והצג אותם.**
+                - כמויות מדויקות (לדוגמה, "100 גרם", "2 יחידות").
+                - תכליל 2-5 רכיבים.
+                - הקפד על עברית תקנית.
+                - **צור אופציה יצירתית ושונה באופן מובהק מהדוגמאות ומהצעות קודמות. המטרה היא לתת למשתמש מגוון אמיתי של רעיונות ולא לחזור על אותו סגנון ארוחה.**
+                **Output Language:** Entirely in Hebrew.
+            `;
+
+            try {
+                const rawResponse = await callGemini(quickMealPrompt, true);
+                console.log("Quick Meal AI Response (raw object):", rawResponse);
+
+                // FIX: Handle cases where the AI wraps the response in an array.
+                const newOption = Array.isArray(rawResponse) ? rawResponse[0] : rawResponse;
+
+                // More robust validation and data correction
+                if (!newOption || typeof newOption !== 'object') {
+                    throw new Error("AI did not return a valid object.");
+                }
+
+                // Correct or set option_name if missing
+                if (!newOption.option_name) {
+                    console.warn("AI response missing 'option_name', assigning default name.");
+                    newOption.option_name = newQuickMealOptionName;
+                }
+
+                // Validate that 'items' and 'nutrition_summary' exist and are structured correctly.
+                if (!Array.isArray(newOption.items) || newOption.items.length === 0 || typeof newOption.nutrition_summary !== 'object') {
+                    console.error("AI response is missing or has malformed 'items' or 'nutrition_summary'", newOption);
+                    throw new Error("AI response is missing required fields (items or nutrition summary).");
+                }
+                
+                // Construct the fully updated meals array once.
+                const updatedMeals = JSON.parse(JSON.stringify(plan.nutrition_plan.meals));
+                if (!Array.isArray(updatedMeals[mealIndex].options)) {
+                    updatedMeals[mealIndex].options = [];
+                }
+                updatedMeals[mealIndex].options.push(newOption);
+
+                // Update the local state
+                setPlan(prevPlan => ({
+                    ...prevPlan,
+                    nutrition_plan: {
+                        ...prevPlan.nutrition_plan,
+                        meals: updatedMeals
+                    }
+                }));
+
+                // Persist the updated meals array to Firestore
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+                await updateDoc(userDocRef, { 
+                    'plan.nutrition_plan.meals': updatedMeals
+                });
+
+                showModal('ארוחה זריזה נוצרה!', `אופציית "${newOption.option_name}" נוספה בהצלחה.`);
+            } catch (error) {
+                console.error("Failed to generate quick meal:", error);
+                const userErrorMessage = error.message.includes("AI response is missing") 
+                    ? "תשובת הבינה המלאכותית לא הייתה תקינה. נסו שוב."
+                    : `אירעה שגיאה. נסה שוב בעוד מספר רגעים.`;
+                showModal("שגיאה ביצירת ארוחה זריזה", userErrorMessage);
+            }
+        };
+
+        const handleWeightChange = (dayName, exerciseId, newWeight) => {
+            const updatedDays = { ...plan.workout_plan.days };
+            updatedDays[dayName] = updatedDays[dayName].map(ex => ex.id === exerciseId ? { ...ex, weight: newWeight } : ex);
+            setPlan(prev => ({ ...prev, workout_plan: { ...prev.workout_plan, days: updatedDays } }));
+        };
+
+        const savePlan = async () => {
+            if (!user || !plan) return;
+            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+            try {
+                await updateDoc(userDocRef, { plan: plan });
+                showModal('שמירה', 'התוכנית עודכנה בהצלחה!');
+            } catch (e) {
+                showModal('שגיאה', 'שגיאה בשמירת התוכנית.');
+                console.error("Error saving plan:", e);
+            }
+        };
+
+        const handleShowVideo = (query) => {
+            if (query) {
+                window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+            } else {
+                showModal("אין סרטון", "לא נמצא קישור לסרטון עבור תרגיל זה.");
+            }
+        };
+
+        const handleShowAlternative = (exerciseName, videoSearchQuery) => {
+            showModal(
+                "צור חלופה לתרגיל", 
+                <AlternativeGeneratorContent 
+                    exerciseName={exerciseName} 
+                    initialVideoQuery={videoSearchQuery} 
+                    userData={userData} 
+                />
+            );
+        };
+
+        const handleExerciseFeedback = async (exerciseName, feedbackType) => {
+            if (!user) return;
+            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+            const likedField = 'profile.liked_exercises';
+            const dislikedField = 'profile.disliked_exercises';
+
+            try {
+                if (feedbackType === 'like') {
+                    await updateDoc(userDocRef, { [likedField]: arrayUnion(exerciseName), [dislikedField]: arrayRemove(exerciseName) });
+                    showModal("פידבק נשמר", `"${exerciseName}" נוסף לתרגילים שאתה אוהב.`);
+                } else {
+                    await updateDoc(userDocRef, { [dislikedField]: arrayUnion(exerciseName), [likedField]: arrayRemove(exerciseName) });
+                    showModal("פידבק נשמר", `"${exerciseName}" נוסף לתרגילים שאתה לא אוהב.`);
+                }
+            } catch (e) {
+                showModal("שגיאה", "שגיאה בשמירת הפידבק.");
+                console.error("Error saving exercise feedback:", e);
+            }
+        };
+
+        if (!plan || !plan.workout_plan || !plan.nutrition_plan) {
+            return <FullScreenLoader />;
+        }
+
+        const { workout_plan, nutrition_plan } = plan;
+        const profile = userData.profile || {};
+        const liked_exercises = profile.liked_exercises || [];
+        const disliked_exercises = profile.disliked_exercises || [];
+
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-amber-400">התוכנית האישית שלך</h2>
+                    <button onClick={savePlan} className="bg-amber-500 text-neutral-900 font-bold p-3 rounded-full hover:bg-amber-400 transition shadow-lg">
+                        <span className="icon-placeholder">💾</span>
+                    </button>
+                </div>
+
+                <Card title="תוכנית אימונים">
+                    <p className="text-amber-400 font-semibold">{workout_plan?.split_type}</p>
+                    {workout_plan?.coach_notes && <p className="text-sm text-neutral-300 italic mt-1 mb-4">"{workout_plan.coach_notes}"</p>}
+                    {workout_plan?.days && typeof workout_plan.days === 'object' && Object.entries(workout_plan.days).sort().map(([dayName, exercises]) => (
+                        <div key={dayName} className="mb-6">
+                            <h4 className="font-bold text-lg text-neutral-100 border-b border-amber-500/50 pb-1 mb-3">{dayName}</h4>
+                            <div className="space-y-4">
+                                {Array.isArray(exercises) && exercises.map(ex => (
+                                    <div key={ex.id} className="bg-neutral-800/70 p-4 rounded-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <span className="font-semibold text-lg text-neutral-100">{ex.name}</span>
+                                                {ex.target_muscle && (
+                                                    <span className="block bg-neutral-700 text-amber-400 text-xs font-medium mt-1 px-2 py-0.5 rounded-full self-start w-fit">
+                                                        {ex.target_muscle}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <button onClick={() => handleExerciseFeedback(ex.name, 'like')} className={`p-2 rounded-lg transition-colors ${liked_exercises.includes(ex.name) ? 'bg-green-500/20 text-green-400' : 'bg-neutral-700/50 hover:bg-neutral-700'}`}>
+                                                    <span className="icon-placeholder">👍</span>
+                                                </button>
+                                                <button onClick={() => handleExerciseFeedback(ex.name, 'dislike')} className={`p-2 rounded-lg transition-colors ${disliked_exercises.includes(ex.name) ? 'bg-red-500/20 text-red-400' : 'bg-neutral-700/50 hover:bg-neutral-700'}`}>
+                                                    <span className="icon-placeholder">👎</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mt-4 items-center">
+                                            <div className="text-center">
+                                                <p className="text-sm text-neutral-400">סטים וחזרות</p>
+                                                <p className="font-bold text-lg text-white">{ex.sets}x{ex.reps}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    placeholder="משקל"
+                                                    value={ex.weight || ''}
+                                                    onChange={(e) => handleWeightChange(dayName, ex.id, e.target.value)}
+                                                    className="w-full bg-neutral-700 text-center rounded p-2 input-style"
+                                                />
+                                                <span className="text-xs text-neutral-500">ק"ג</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 mt-4">
+                                            <button onClick={() => handleShowVideo(ex.video_search_query)} className="action-btn bg-red-500/10 text-red-400 hover:bg-red-500/20 flex-1 justify-center">
+                                                <span className="icon-placeholder">🎬</span> סרטון
+                                            </button>
+                                            <button onClick={() => handleShowAlternative(ex.name, ex.video_search_query)} className="action-btn bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 flex-1 justify-center">
+                                                <span className="icon-placeholder">🧠</span> חלופה
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </Card>
+
+                {Array.isArray(nutrition_plan.meals) && nutrition_plan.meals.map((meal, index) => (
+                    <MealCard 
+                        key={`${meal.title}-${index}`} 
+                        meal={meal} 
+                        onGenerateQuickMeal={(currentOptions) => handleGenerateQuickMealForMeal(index, meal.title, meal.time, currentOptions)} 
+                    />
+                ))}
+
+                {nutrition_plan.component_alternatives && (
+                    <Card title="בנק החלפות">
+                        <button onClick={() => setShowAlternatives(!showAlternatives)} className="w-full flex justify-between items-center p-3 bg-neutral-700/50 rounded-lg text-lg font-semibold text-neutral-100 hover:bg-neutral-700">
+                            <span>{showAlternatives ? 'הסתר חלופות' : 'הצג חלופות'}</span>
+                            <span className="icon-placeholder">🔄</span>
+                        </button>
+                        {showAlternatives && (
+                            <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <AlternativesColumn title="חלבונים" sources={nutrition_plan.component_alternatives.protein_sources} />
+                                <AlternativesColumn title="פחמימות" sources={nutrition_plan.component_alternatives.carb_sources} />
+                                <AlternativesColumn title="שומנים" sources={nutrition_plan.component_alternatives.fat_sources} />
+                            </div>
+                        )}
+                    </Card>
+                )}
+
+                <Card>
+                    <RestaurantRecommender userData={userData} />
+                </Card>
+
+                <style>{`.action-btn, .ai-btn { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; transition: background-color 0.2s; }`}</style>
+            </div>
+        );
+    }
+
+    function AlternativeGeneratorContent({ exerciseName, initialVideoQuery, userData }) {
+        const { showModal, hideModal } = useModal();
+        const [selectedEquipment, setSelectedEquipment] = React.useState('משקל גוף'); 
+        const [isGenerating, setIsGenerating] = React.useState(false);
+        const [generatedAlternative, setGeneratedAlternative] = React.useState(null);
+
+        const equipmentOptions = ['משקל גוף', 'משקולות', 'מוט', 'גומיות', 'מכשירים', 'אחר'];
+
+        const handleGenerateAlternative = async () => {
+            setIsGenerating(true);
+            setGeneratedAlternative(null);
+
+            const userGoals = userData?.profile?.specific_goals || 'שיפור כללי בכושר';
+            const userHealthConditions = userData?.profile?.health_conditions || 'ללא בעיות בריאותיות ידועות';
+            const userInjuries = userData?.profile?.injuries || 'ללא פציעות ידועות';
+
+            const prompt = `
+                בתור קינסיולוג מומחה ומאמן כושר, מצא תרגיל חלופי אופטימלי לתרגיל " ${exerciseName} " עבור משתמש עם המאפיינים הבאים:
+                -   **יעדים:** "${userGoals}"
+                -   **מצב בריאותי:** "${userHealthConditions}"
+                -   **פציעות:** "${userInjuries}"
+                -   **ציוד זמין:** "${selectedEquipment}"
+
+                החזר את התשובה בפורמט Markdown מובנה כדלקמן, בעברית בלבד, וודא שאין טקסט נוסף לפני או אחרי בלוק הקוד:
+                
+                \`\`\`
+                **חלופה לתרגיל "${exerciseName}" - באמצעות "${selectedEquipment}":**
+                
+                **שם חלופי:** <שם התרגיל החלופי המוצע בעברית>
+                **תיאור והתאמה:** <הסבר קצר על אופן ביצוע התרגיל, ומדוע הוא מהווה חלופה יעילה ומתאימה ליעד המשתמש בהינתן הציוד שבחר (2-4 שורות).>
+                **סטים וחזרות מומלצים:** <לדוגמה: 3 סטים X 10-12 חזרות, או 3 סטים עד כשל>
+                **וידאו להמחשה (חיפוש YouTube):** <שאילתת חיפוש מדויקת ורלוונטית ליוטיוב בעברית, לדוגמה: "איך לבצע תרגיל לחיצת חזה עם משקולות" - חייב להיות רק טקסט לחיפוש, ללא קישור.>
+                \`\`\`
+                
+                **דגשים חשובים לפלט:**
+                -   התשובה כולה חייבת להיות בעברית.
+                -   החזר אך ורק את בלוק הקוד המלא, ללא שום טקסט מקדים או מסיים.
+                -   וודא שהחלופה אכן ישימה ורלווננטית לציוד שנבחר.
+                -   הקפד על פורמט Markdown מדויק כפי שצוין לעיל.
+                **Output Language:** Entirely in Hebrew.
+            `;
+
+            try {
+                const responseText = await callGemini(prompt, false);
+                setGeneratedAlternative(responseText);
+            } catch (error) {
+                console.error("Failed to generate alternative:", error);
+                setGeneratedAlternative(`**שגיאה:** לא הצלחנו למצוא חלופה כרגע. אנא נסה/י שוב או בחר/י ציוד אחר. (${error.message})`);
+            } finally {
+                setIsGenerating(false);
+            }
+        };
+
+        const openYoutubeSearch = () => {
+            if (generatedAlternative) {
+                const match = generatedAlternative.match(/\*\*וידאו להמחשה \(חיפוש YouTube\):\*\* (.+)/);
+                const query = match ? match[1].trim() : initialVideoQuery;
+                if (query) {
+                    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, '_blank');
+                } else {
+                    showModal("אין סרטון", "לא נמצא קישור לסרטון עבור תרגיל זה.");
+                }
+            }
+        };
+
+        return (
+            <div className="space-y-4 text-neutral-200">
+                <h4 className="text-xl font-bold mb-4">חלופה לתרגיל: {exerciseName}</h4>
+                <p className="text-neutral-400 text-sm mb-4">בחר/י את הציוד הזמין לך כדי למצוא חלופה מתאימה:</p>
+                
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 mb-4">
+                    {equipmentOptions.map(option => (
+                        <button
+                            key={option}
+                            onClick={() => setSelectedEquipment(option)}
+                            className={`p-3 rounded-lg text-center transition-all duration-200 border-2 ${selectedEquipment === option ? 'bg-blue-500/20 border-blue-400 text-blue-300 font-bold' : 'bg-neutral-700/50 border-transparent hover:bg-neutral-700'}`}
+                        >
+                            {option}
+                        </button>
+                    ))}
+                </div>
+
+                <button
+                    onClick={handleGenerateAlternative}
+                    disabled={isGenerating || !selectedEquipment}
+                    className={`btn-primary w-full flex items-center justify-center gap-2 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {isGenerating ? <LoadingSpinner /> : <span className="icon-placeholder">✨</span>}
+                    {isGenerating ? 'מחפש חלופה...' : 'צור חלופה'}
+                </button>
+
+                {generatedAlternative && (
+                    <div className="mt-6 p-4 bg-neutral-700 rounded-lg whitespace-pre-wrap flex flex-col items-center">
+                        <div className="text-right w-full mb-4" dangerouslySetInnerHTML={{ __html: generatedAlternative.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
+                        <button onClick={openYoutubeSearch} className="ai-btn bg-red-500/10 text-red-400 hover:bg-red-500/20 mt-2 w-full max-w-xs">
+                            <span className="icon-placeholder">▶️</span> צפה בוידאו
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    function ChatView({ user, userData }) {
+        const { showModal } = useModal();
+        const [chatHistory, setChatHistory] = React.useState([]);
+        const [currentMessage, setCurrentMessage] = React.useState('');
+        const [isResponding, setIsResponding] = React.useState(false);
+
+        const handleSendMessage = async () => {
+            if (!currentMessage.trim()) return;
+
+            const userMessage = { role: 'user', parts: [{ text: currentMessage.trim() }] };
+            setChatHistory(prev => [...prev, userMessage]);
+            setCurrentMessage('');
+            setIsResponding(true);
+
+            try {
+                const initialPersonaPrompt = {
+                    role: 'user',
+                    parts: [{ text: `בתור מאמן כושר ודיאטן קליני מוסמך, מטרתך לספק מידע מדויק, מבוסס מדע ומותאם אישית למשתמש. ענה על שאלות בנושאי תזונה, אימונים ובריאות כללית. אל תספק אבחנות רפואיות או תחליף ייעוץ רופא.
+                        המשתמש הוא: ${userData.profile.name}.
+                        יעדי המשתמש: ${userData.profile.specific_goals}.
+                        הגבלות תזונתיות: ${userData.profile.dietary_restrictions || 'אין'}.
+                        משקל נוכחי: ${userData.profile.current_weight} ק"ג, גובה: ${userData.profile.height} ס"מ, גיל: ${userData.profile.age}.
+                        נא ענה לו בטון מקצועי ותומך, השתמש ב-Markdown לעיצוב התשובות (כותרות, בולטים, הדגשות) כאשר רלוונטי.
+                        הצג מידע בצורה מסודרת וברורה.
+                        הפלט חייב להיות כולו בעברית בלבד.`
+                    }]
+                };
+
+                const fullChatContext = [initialPersonaPrompt, ...chatHistory, userMessage];
+                const aiResponse = await callGemini(fullChatContext); 
+                setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: aiResponse }] }]);
+            } catch (error) {
+                console.error("Chatbot AI failed:", error);
+                showModal("שגיאה בצ'אטבוט", "אירעה שגיאה בקבלת התשובה מה-AI. אנא נסה שוב.");
+                setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: 'אני מתנצל, אירעה שגיאה. אנא נסה/י שוב.' }] }]);
+            } finally {
+                setIsResponding(false);
+            }
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        };
+
+        const messagesEndRef = React.useRef(null);
+        React.useEffect(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, [chatHistory]);
+
+
+        return (
+            <div className="flex flex-col h-[80vh] bg-neutral-800/50 rounded-2xl border border-neutral-700 shadow-2xl p-4">
+                <h3 className="text-xl font-semibold text-neutral-100 mb-4 border-b border-neutral-700 pb-2">צ'אט עם המאמן האישי שלך 🤖</h3>
+                <div className="flex-grow overflow-y-auto space-y-4 p-2 custom-scrollbar">
+                    {chatHistory.length === 0 ? (
+                        <div className="text-center text-neutral-400 mt-10">
+                            שלום! איך אוכל לעזור לך היום? <br/>
+                            שאל/י אותי על תזונה, אימונים או בריאות כללית.
+                        </div>
+                    ) : (
+                        chatHistory.map((msg, index) => (
+                            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[75%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-amber-600 text-white' : 'bg-neutral-700 text-neutral-200'} whitespace-pre-wrap`}>
+                                    {msg.parts[0].text}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                    {isResponding && (
+                        <div className="flex justify-start">
+                            <div className="max-w-[75%] p-3 rounded-lg bg-neutral-700 text-neutral-200">
+                                <LoadingSpinner />
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+                <div className="mt-4 flex gap-2">
+                    <textarea
+                        className="input-style flex-grow resize-none overflow-hidden h-12 py-3"
+                        placeholder="כתוב הודעה..."
+                        value={currentMessage}
+                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        style={{minHeight: '48px', maxHeight: '150px'}}
+                    />
+                    <button 
+                        onClick={handleSendMessage} 
+                        disabled={isResponding || !currentMessage.trim()}
+                        className="btn-primary px-4 py-2 flex-shrink-0"
+                    >
+                        {isResponding ? 'שולח...' : 'שלח'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    function RestaurantRecommender({ userData }) {
+        const { showModal } = useModal();
+        const [selectedRestaurantType, setSelectedRestaurantType] = React.useState('');
+        const [isGenerating, setIsGenerating] = React.useState(false);
+
+        const restaurantTypes = ['איטלקי', 'אסייתי', 'ים תיכוני', 'אמריקאי', 'מקסיקני', 'טבעוני', 'מזרח תיכוני'];
+
+        const handleGetRecommendation = async () => {
+            if (!selectedRestaurantType) {
+                showModal("בחר סגנון מסעדה", "אנא בחר סגנון מסעדה כדי לקבל המלצה.");
+                return;
+            }
+
+            setIsGenerating(true);
+            showModal("מחולל המלצה", <LoadingSpinner />);
+
+            const userProfile = userData?.profile || {};
+            const userGoals = userProfile.specific_goals || 'ירידה באחוזי שומן';
+            const dietaryRestrictions = userProfile.dietary_restrictions || 'אין';
+
+            const prompt = `
+                כדיאטן קליני ומומחה לתזונה, המלץ על 3 אופציות ארוחה מפורטות, בריאות וטעימות, המתאימות באופן ספציפי ליעדי הכושר של הלקוח "${userGoals}" ולהגבלות התזונתיות "${dietaryRestrictions}" (אם קיימות) במסעדה בסגנון "${selectedRestaurantType}".
+                הצג כל מנה עם כותרת, תיאור, ופירוט התאמתה ליעדים. השתמש בסימני Markdown (כותרות מודגשות, בולטים) לפורמט יוקרתי ומקצועי.
+                
+                ---
+                
+                **1. <שם המנה הראשונה>**
+                **תיאור ומרכיבים עיקריים:** (2-3 שורות, דגש על מרכיבים בריאים ותואמים ליעדים).
+                **התאמה ליעדים:** (1-2 שורות, הסבר תזונתי קצר).
+                
+                **2. <שם המנה השנייה>**
+                **תיאור ומרכיבים עיקריים:** (2-3 שורות).
+                **התאמה ליעדים:** (1-2 שורות).
+                
+                **3. <שם המנה השלישית>**
+                **תיאור ומרכיבים עיקריים:** (2-3 שורות).
+                **התאמה ליעדים:** (1-2 שורות).
+                
+                ---
+                
+                **✨ טיפ זהב לבילוי חכם במסעדה ${selectedRestaurantType}:**
+                <טיפ קצר ופרקטי (שורת אחת) שמתייחס להקשר המסעדה והיעדים הכלליים של הלקוח>
+                
+                ---
+                
+                וודא שהפלט הוא אך ורק הטקסט בעברית ובפורמט המבוקש.
+                **Output Language:** Entirely in Hebrew.
+            `;
+
+            try {
+                const response = await callGemini(prompt, false); 
+                showModal(`המלצה למסעדה ${selectedRestaurantType} 🥗`, <div className="whitespace-pre-wrap">{response}</div>);
+            } catch (error) {
+                console.error("Failed to get restaurant recommendation:", error);
+                showModal("שגיאה בהמלצה", "אירעה שגיאה. נסה שוב בעוד מספר רגעים.");
+            } finally {
+                setIsGenerating(false);
+            }
+        };
+
+        return (
+            <div className="space-y-4 text-neutral-200">
+                <h3 className="text-xl font-semibold text-neutral-100">המלצת מסעדה חכמה</h3>
+                <p className="text-neutral-400 text-sm">קבל המלצות לארוחות בריאות במסעדות לפי יעדי הכושר שלך.</p>
+                <div className="grid grid-cols-2 gap-3">
+                    {restaurantTypes.map(type => (
+                        <button
+                            key={type}
+                            onClick={() => setSelectedRestaurantType(type)}
+                            className={`p-3 rounded-lg text-center transition-all duration-200 border-2 ${selectedRestaurantType === type ? 'bg-blue-500/20 border-blue-400 text-blue-300 font-bold' : 'bg-neutral-700/50 border-transparent hover:bg-neutral-700'}`}
+                        >
+                            {type}
+                        </button>
+                    ))}
+                </div>
+                <button
+                    onClick={handleGetRecommendation}
+                    disabled={isGenerating || !selectedRestaurantType}
+                    className={`ai-btn bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 w-full ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {isGenerating ? <LoadingSpinner /> : <span className="icon-placeholder">✨</span>}
+                    {isGenerating ? 'מכין המלצה...' : 'קבל המלצה'}
+                </button>
+            </div>
+        );
+    }
+
+    const AlternativesColumn = ({ title, sources }) => (
+        <div className="space-y-3">
+            <h4 className="font-bold text-lg text-amber-400 border-b border-amber-500/30 pb-2">{title}</h4>
+            <div className="space-y-2 text-sm">
+                <div className="grid grid-cols-5 gap-2 font-semibold text-neutral-400 px-2">
+                    <span className="col-span-2">מקור (ל-100ג')</span>
+                    <span>קל'</span>
+                    <span>חלבון</span>
+                    <span>פחמ'</span>
+                </div>
+                {Array.isArray(sources) && sources.map(src => (
+                    <div key={src.name} className="grid grid-cols-5 gap-2 p-2 bg-neutral-800/50 rounded">
+                        <span className="col-span-2 font-medium text-neutral-200">{src.name}</span>
+                        <span className="text-neutral-300">{src.calories}</span>
+                        <span className="text-neutral-300">{src.protein_g}ג'</span>
+                        <span className="text-neutral-300">{src.carbs_g}ג'</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const MealCard = ({ meal, onGenerateQuickMeal }) => {
+        const [activeIndex, setActiveIndex] = React.useState(0);
+        if (!meal) return null;
+
+        const hasOptions = Array.isArray(meal.options) && meal.options.length > 0;
+        const itemsToShow = hasOptions ? meal.options[activeIndex]?.items : (meal.items || []);
+        const summaryToShow = hasOptions ? meal.options[activeIndex]?.nutrition_summary : meal.nutrition_summary;
+
+        const proteins = Array.isArray(itemsToShow) ? itemsToShow.filter(i => i.type === 'חלבון') : [];
+        const carbs = Array.isArray(itemsToShow) ? itemsToShow.filter(i => i.type === 'פחמימה') : [];
+        const fats = Array.isArray(itemsToShow) ? itemsToShow.filter(i => i.type === 'שומן') : [];
+
+        return (
+            <Card>
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-xl font-semibold text-neutral-100">{`${meal.title} (${meal.time})`}</h3>
+                    {onGenerateQuickMeal && (
+                        <button 
+                            onClick={() => onGenerateQuickMeal(meal.options)}
+                            className="bg-green-500/10 text-green-400 hover:bg-green-500/20 text-xs font-bold py-1 px-2 rounded-full transition-colors"
+                        >
+                            <span className="icon-placeholder">⚡</span> ארוחה זריזה
+                        </button>
+                    )}
+                </div>
+                {hasOptions && (
+                    <div className="flex flex-wrap gap-2 mb-4 border-b border-neutral-700 pb-3">
+                        {meal.options.map((option, index) => (
+                            <button
+                                key={option.option_name || index}
+                                onClick={() => setActiveIndex(index)}
+                                className={`px-3 py-1 text-sm rounded-full transition-colors ${activeIndex === index ? 'bg-amber-400 text-neutral-900 font-bold' : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-300'}`}
+                            >
+                                {option.option_name || `אופציה ${index + 1}`}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <div className="space-y-3">
+                    {proteins.length > 0 && <MealCategory title="חלבון" items={proteins} color="blue" />}
+                    {carbs.length > 0 && <MealCategory title="פחמימה" items={carbs} color="green" />}
+                    {fats.length > 0 && <MealCategory title="שומן" items={fats} color="yellow" />}
+                </div>
+
+                {summaryToShow && (
+                    <div className="mt-4 pt-3 border-t border-neutral-700/50">
+                        <h4 className="text-sm font-semibold text-neutral-200 mb-2">ערכים תזונתיים לאופציה זו:</h4>
+                        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                            <div><p className="font-bold text-neutral-100">{summaryToShow.calories}</p><p className="text-neutral-400">קלוריות</p></div>
+                            <div><p className="font-bold text-neutral-100">{summaryToShow.protein_g}ג'</p><p className="text-neutral-400">חלבון</p></div>
+                            <div><p className="font-bold text-neutral-100">{summaryToShow.carbs_g}ג'</p><p className="text-neutral-400">פחמימה</p></div>
+                            <div><p className="font-bold text-neutral-100">{summaryToShow.fats_g}ג'</p><p className="text-neutral-400">שומן</p></div>
+                        </div>
+                    </div>
+                )}
+            </Card>
+        );
+    };
+
+    const MealCategory = ({ title, items, color }) => (
+        <div className="mt-1 space-y-2">
+            <h4 className={`font-semibold text-sm text-${color}-400`}>{title}</h4>
+            {Array.isArray(items) && items.map((item, index) => (
+                <div key={index} className="flex justify-between text-neutral-300 text-sm">
+                    <span className="pr-2">{item.name}</span>
+                    <span className="font-mono text-neutral-400 text-left">{item.quantity} {item.unit}</span>
+                </div>
+            ))}
+        </div>
+    );
+
+    function ProgressView({ user, userData }) {
+        const { showModal } = useModal();
+        const [weightLog, setWeightLog] = React.useState([]);
+        const [newWeight, setNewWeight] = React.useState("");
+        const [loading, setLoading] = React.useState(true);
+
+        React.useEffect(() => {
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+            const logCollectionRef = collection(db, 'artifacts', appId, 'users', user.uid, 'weightLog');
+            const q = query(logCollectionRef);
+
+            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                const logData = querySnapshot.docs
+                    .filter(doc => doc.data().timestamp?.seconds)
+                    .map(doc => ({
+                        ...doc.data(),
+                        name: new Date(doc.data().timestamp.seconds * 1000).toLocaleDateString('he-IL')
+                    }))
+                    .sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
+
+                if (logData.length === 0 && userData.profile?.current_weight) {
+                    setWeightLog([{ name: 'התחלה', weight: parseFloat(userData.profile.current_weight) }]);
+                } else {
+                    setWeightLog(logData.map(d => ({ ...d, weight: parseFloat(d.weight) })));
+                }
+                setLoading(false);
+            }, (error) => {
+                console.error("Error fetching weight log:", error);
+                showModal("שגיאה", "שגיאה בטעינת יומן המשקל.");
+                setLoading(false);
+            });
+            return () => unsubscribe();
+        }, [user, userData.profile, db, appId]);
+
+        const addWeightEntry = async () => {
+            if (!user) {
+                showModal('שגיאה', 'אנא התחבר/י כדי להוסיף שקילה.');
+                return;
+            }
+            if (!newWeight || isNaN(parseFloat(newWeight))) {
+                showModal('שגיאה', 'אנא הזן ערך מספרי תקין למשקל.');
+                return;
+            }
+
+            const logCollectionRef = collection(db, 'artifacts', appId, 'users', user.uid, 'weightLog');
+            try {
+                await addDoc(logCollectionRef, {
+                    weight: Number(newWeight),
+                    timestamp: serverTimestamp()
+                });
+                setNewWeight("");
+                showModal('הצלחה', 'השקילה נוספה בהצלחה!');
+            } catch (e) {
+                showModal("שגיאה", "שגיאה בהוספת השקילה.");
+                console.error("Error adding weight entry:", e);
+            }
+        };
+
+        return (
+            <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-amber-400">מעקב התקדמות</h2>
+
+                <Card title="גרף משקל">
+                    {loading ? (
+                        <LoadingSpinner />
+                    ) : weightLog.length === 0 ? (
+                        <div className="text-center py-10 text-neutral-400">הוסף שקילה ראשונה כדי להתחיל לראות את הגרף.</div>
+                    ) : (
+                        <div className="h-64">
+                            <p className="text-neutral-300 text-sm mb-2">נתוני שקילות (תאריך - משקל):</p>
+                            <ul className="list-disc list-inside text-neutral-300 text-left overflow-y-auto max-h-48 p-2 bg-neutral-800/50 rounded-lg">
+                                {weightLog.map((entry, index) => (
+                                    <li key={index}>{entry.name}: {entry.weight} ק"ג</li>
+                                ))}
+                            </ul>
+                            <p className="text-neutral-400 text-xs mt-2">גרף לא זמין בגרסה זו.</p>
+                        </div>
+                    )}
+                    <div className="mt-4 flex gap-2">
+                        <input
+                            type="number"
+                            value={newWeight}
+                            onChange={(e) => setNewWeight(e.target.value)}
+                            placeholder="הזן משקל נוכחי"
+                            className="input-style"
+                        />
+                        <button onClick={addWeightEntry} className="bg-amber-500 text-neutral-900 font-bold p-2 rounded hover:bg-amber-400 transition flex items-center gap-1">
+                            <span className="icon-placeholder">➕</span> הוסף
+                        </button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    function ProfileView({ user, userData }) {
+        const { showModal } = useModal();
+        const profile = userData?.profile;
+
+        const handleSignOut = async () => {
+            try {
+                await signOut(auth);
+                showModal("התנתקות", "התנתקת בהצלחה!");
+            } catch (error) {
+                showModal("שגיאה בהתנתקות", `אירעה שגיאה: ${error.message}`);
+                console.error("Error signing out:", error);
+            }
+        };
+
+        if (!profile) return <FullScreenLoader />;
+
+        return (
+            <div className="space-y-6 text-center p-4">
+                <Card>
+                    <span className="text-6xl mx-auto block mb-4 text-neutral-500">👤</span>
+                    <h3 className="text-3xl font-bold mt-4">{profile.name}</h3>
+                    <p className="text-amber-400">{profile.specific_goals}</p>
+                    <div className="mt-4 text-sm text-neutral-400">
+                        <p>גיל: {profile.age} | גובה: {profile.height} ס"מ | משקל: {profile.current_weight} ק"ג</p>
+                        <p>תדירות אימונים: {profile.training_frequency} בשבוע</p>
+                    </div>
+                    <button onClick={handleSignOut} className="mt-6 w-full bg-red-500/20 text-red-400 hover:bg-red-500/30 px-4 py-2 rounded-lg font-semibold transition">
+                        התנתק
+                    </button>
+                </Card>
+            </div>
+        );
+    }
+
+    const FullScreenLoader = ({ children }) => (
+        <div className="bg-neutral-900 min-h-screen flex flex-col justify-center items-center p-4">
+            {children || <div className="loader"></div>}
+        </div>
+    );
+
+    const TabButton = ({ icon, label, name, activeTab, setActiveTab }) => (
+        <button
+            onClick={() => setActiveTab(name)}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 ${activeTab === name ? 'text-amber-400 bg-amber-500/10' : 'text-neutral-400 hover:bg-neutral-800'}`}
+        >
+            {icon}
+            <span className="text-xs mt-1">{label}</span>
+        </button>
+    );
+
+    const Card = ({ title, children }) => (
+        <div className="bg-neutral-800/50 p-4 sm:p-6 rounded-2xl border border-neutral-700">
+            {title && <h3 className="text-xl font-semibold text-neutral-100 mb-4">{title}</h3>}
+            {children}
+        </div>
+    );
+
+    const Tracker = ({ label, value, onIncrease, onDecrease, icon }) => (
+        <div className="flex flex-col items-center justify-center p-2 bg-neutral-800 rounded-lg">
+            {icon}
+            <p className="mt-1 text-sm text-neutral-300">{label}</p>
+            <p className="text-lg font-bold text-white my-1">{value}</p>
+            <div className="flex gap-2">
+                <button onClick={onDecrease} className="p-1 bg-neutral-700 rounded-full"><span className="icon-placeholder">➖</span></button>
+                <button onClick={onIncrease} className="p-1 bg-neutral-700 rounded-full"><span className="icon-placeholder">➕</span></button>
+            </div>
+        </div>
+    );
+
+    const LoadingSpinner = () => <div className="flex justify-center items-center h-24"><div className="loader"></div></div>;
+
+    const Modal = ({ isOpen, onClose, title, content }) => (
+        isOpen ? (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-neutral-800 rounded-2xl border border-neutral-700 shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center p-4 border-b border-neutral-700">
+                    <h3 className="text-xl font-semibold text-neutral-100">{title}</h3>
+                    <button onClick={onClose} className="text-neutral-400 hover:text-white text-xl font-bold">X</button>
+                </div>
+                <div className="p-6 overflow-y-auto text-neutral-300 flex-grow">{content}</div>
+            </div>
+        </div>
+        ) : null
+    );
+
+    async function callGemini(promptOrChatHistory, expectJson = false) {
+        // WARNING: This API key is now hardcoded and exposed to the public.
+        // This is a major security risk. It is highly recommended to move this to a 
+        // serverless function (e.g., Netlify Functions) before deploying your site publicly.
+        const apiKey = "AIzaSyBpU6_P_ChfHFuCMZiN6UgKilSpIfhM8ck"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        
+        const generationConfig = {};
+        if (expectJson) {
+            generationConfig.responseMimeType = "application/json";
+        }
+
+        let contentsPayload;
+        if (Array.isArray(promptOrChatHistory)) {
+            contentsPayload = promptOrChatHistory;
+        } else {
+            contentsPayload = [{ role: "user", parts: [{ text: promptOrChatHistory }] }];
+        }
+
+        const payload = {
+            contents: contentsPayload,
+            generationConfig: generationConfig
+        };
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json(); 
+
+            if (!response.ok) {
+                const errorMessage = result.error?.message || response.statusText;
+                console.error("API Error Response Body:", result); 
+                throw new Error(`Network error: ${response.status} - ${errorMessage}`);
+            }
+
+            if (!result || !result.candidates || result.candidates.length === 0 || !result.candidates[0].content || !result.candidates[0].content.parts || result.candidates[0].content.parts.length === 0 || !result.candidates[0].content.parts[0].text) {
+                console.error("AI response missing expected content structure:", result);
+                throw new Error("Empty or malformed response from AI.");
+            }
+
+            const extractedText = result.candidates[0].content.parts[0].text;
+            if (expectJson && typeof extractedText === 'string') {
+                const jsonMatch = extractedText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                let textToParse = jsonMatch ? jsonMatch[1] : extractedText;
+
+                try {
+                    return JSON.parse(textToParse);
+                } catch (innerParseError) {
+                    throw new Error(`Invalid JSON format from AI even after extraction attempt: ${textToParse}`);
+                }
+            }
+            return extractedText;
+            
+        } catch (error) {
+            console.error("Gemini API call failed:", error);
+            throw error; 
+        }
+    }
+    
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(AppContainer, null));
+
+  </script>
 </body>
 </html>
